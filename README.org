@@ -1,8 +1,7 @@
-#+PROPERTY: LOGGING nil
-
 * Hl-line-fringe                                                   :noexport:
 
-[[https://travis-ci.org/hubisan/hl-line-fringe][https://travis-ci.org/hubisan/hl-line-fringe.svg?branch=master]] [[https://www.gnu.org/licenses/gpl-3.0][https://img.shields.io/badge/License-GPL%20v3-blue.svg]]
+[[https://travis-ci.org/hubisan/hl-line-fringe][https://travis-ci.org/hubisan/hl-line-fringe.svg?branch=master]] 
+[[https://www.gnu.org/licenses/gpl-3.0][https://img.shields.io/badge/License-GPL%20v3-blue.svg]]
 
 Highlight current line and/or indicate the current line in the fringe locally or
 globally.
@@ -12,12 +11,12 @@ globally.
 TODO: Add screenshot for each.
 
 - Highlights the current line
-- \ast{} Indicates the current line in the fringe
-- \ast{} Different faces for current and inactive buffers
-- \ast{} Different bitmaps for the fringe indicator for current and
+- * Indicates the current line in the fringe
+- * Different faces for current and inactive buffers
+- * Different bitmaps for the fringe indicator for current and
   inactive buffers
   
-\ast{} not available with hl-line-mode
+\star not available with hl-line-mode
 
 -----
 
@@ -90,7 +89,7 @@ With [[https://github.com/jwiegley/use-package][use-package]]:
 
 * Changelog
 
-** 1.0.0                                                          :noexport:
+** 1.0.0                                                           :noexport:
 
 First stable version.
 
