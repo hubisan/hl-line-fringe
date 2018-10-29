@@ -1,0 +1,106 @@
+#+PROPERTY: LOGGING nil
+
+* Hl-line-fringe                                                   :noexport:
+
+[[https://travis-ci.org/hubisan/hl-line-fringe][https://travis-ci.org/hubisan/hl-line-fringe.svg?branch=master]] [[https://www.gnu.org/licenses/gpl-3.0][https://img.shields.io/badge/License-GPL%20v3-blue.svg]]
+
+Highlight current line and/or indicate the current line in the fringe locally or
+globally.
+
+** Main features
+
+TODO: Add screenshot for each.
+
+- Highlights the current line
+- \ast{} Indicates the current line in the fringe
+- \ast{} Different faces for current and inactive buffers
+- \ast{} Different bitmaps for the fringe indicator for current and
+  inactive buffers
+  
+\ast{} not available with hl-line-mode
+
+-----
+
+* Contents                                                        :TOC:QUOTE:
+#+BEGIN_QUOTE
+- [[#usage][Usage]]
+  - [[#customization][Customization]]
+  - [[#faces][Faces]]
+- [[#changelog][Changelog]]
+- [[#contributing][Contributing]]
+#+END_QUOTE
+
+* Usage
+
+Turn the mode on in a buffer with ~(hl-line-fringe-mode)~ or globally with
+~(global-hl-line-fringe-mode)~.
+
+** Customization
+
+Set the following variables to change the behaviour of the mode (default values in parens):
+
+- ~hl-line-fringe-line~ :: (t) If non-nil highlighting the line is enabled.
+- ~hl-line-fringe-line-sticky~ :: If nil the line hightlight is only shown in the current buffer.
+- ~hl-line-fringe-line-overlay-priority~ :: (-50) Priority of line highlight overlay. 
+- ~hl-line-fringe-indicator~ :: (t) If non-nil the fringe indicator is enabled.
+- ~hl-line-fringe-indicator-char~ :: ("X") Character used to draw the indicator on character terminals.
+- ~hl-line-fringe-indicator-bitmap~ :: ('hl-line-fringe-indicator-bitmap-1) Fringe bitmap to use for the indicator.
+- ~hl-line-fringe-indicator-bitmap-inactive~ :: ('hl-line-fringe-indicator-bitmap-2) Fringe bitmap to use for the indicator if buffer is inactive. 
+- ~hl-line-fringe-indicator-sticky~ :: (t) If nil the fringe indicator is only shown in the current buffer.
+- ~hl-line-fringe-indicator-overlay-priority~ :: (1) Priority of fringe indicator overlay.
+- ~hl-line-fringe-global-ignored-major-modes~ :: (nil) List of major modes to ignore with global mode.
+
+** Faces
+
+The following faces are defined:
+
+- ~hl-line-fringe-line~ :: Face used to highlight the current line if buffer is active.
+- ~hl-line-fringe-line-inactive~ :: Face used to highlight the current line if buffer is inactive.
+- ~hl-line-fringe-indicator~ :: Face used to indicate the current line in the fringe if buffer is active.
+- ~hl-line-fringe-indicator-inactive~ :: Face used to indicate the current line in the fringe if buffer is inactive.
+    
+* COMMENT Installation
+
+Install the ivy package from MELPA.
+
+With [[https://github.com/jwiegley/use-package][use-package]]:
+
+#+BEGIN_SRC emacs-lisp
+  (use-package hl-line-fringe-mode
+    :ensure nil
+    :defer t
+    :hook (after-init . global-hl-line-fringe-mode)
+    :init
+    ;; Customization
+    (setq
+     hl-line-fringe-line t
+     hl-line-fringe-indicator t
+     hl-line-fringe-line-sticky t
+     hl-line-fringe-indicator-sticky t
+     hl-line-fringe-indicator-bitmap 'hl-line-fringe-indicator-bitmap-1
+     hl-line-fringe-indicator-bitmap-inactive 'hl-line-fringe-indicator-bitmap-2
+     ;; ...
+     )
+    :custom-face
+    (hl-line-fringe-line ((t (:inherit highlight))))
+    (hl-line-fringe-line-inactive ((t (:inherit lazy-highlight))))
+    (hl-line-fringe-indicator ((t (:inherit font-lock-keyword-face))))
+    (hl-line-fringe-indicator-inactive ((t (:inherit font-lock-comment-face)))))
+#+END_SRC
+
+* Changelog
+
+** 1.0.0                                                          :noexport:
+
+First stable version.
+
+* Contributing
+
+Install dependencies for testing with ~cask install~.
+
+Before submitting a change run ~make~ to:
+
+ - run the tests,
+ - checkdoc,
+ - package-lint 
+ - and elisp-lint. 
