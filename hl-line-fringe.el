@@ -94,13 +94,15 @@ Higher priority overlays others with lower priority."
 (defcustom hl-line-fringe-indicator-bitmap
   (if (fboundp 'define-fringe-bitmap)
       (define-fringe-bitmap 'hl-line-fringe-indicator-bitmap-1
-        (vector #b11000000
-                #b11100000
-                #b11110000
-                #b11111000
-                #b11110000
-                #b11100000
-                #b11000000)
+        (vector #b00000000
+                #b01000000
+                #b01100000
+                #b01110000
+                #b01111000
+                #b01110000
+                #b01100000
+                #b01000000
+                #b00000000)
         nil nil 'center)
     'vertical-bar)
   "Fringe bitmap to use for the indicator.
@@ -179,7 +181,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
     (let ((ov (make-overlay (point) (point))))
       (overlay-put ov 'priority hl-line-fringe-line-overlay-priority)
       (overlay-put ov 'face 'hl-line-fringe-line)
-      (overlay-put ov 'window (selected-window))
+      ;; (overlay-put ov 'window (selected-window))
       (setq hl-line-fringe--line-overlay ov))))
 
 (defun hl-line-fringe--indicator-make ()
@@ -187,7 +189,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
   (unless (overlayp hl-line-fringe--indicator-overlay)
     (let ((ov (make-overlay (point) (point))))
       (overlay-put ov 'priority hl-line-fringe-indicator-overlay-priority)
-      (overlay-put ov 'window (selected-window))
+      ;; (overlay-put ov 'window (selected-window))
       (overlay-put ov 'before-string
                    (propertize hl-line-fringe-indicator-char
                                'display
@@ -351,7 +353,11 @@ Else to defaults."
         ;; In case `kill-all-local-variables' is called.
         (add-hook 'change-major-mode-hook #'hl-line-fringe--delete nil t)
         (hl-line-fringe--update-current)
-        (add-hook 'post-command-hook #'hl-line-fringe--update nil t))
+        (add-hook 'post-command-hook #'hl-line-fringe--update nil t)
+        ;; TODO:
+        ;; update previous prolly needs to be global if only activate in
+        ;; 1 buffer?
+        )
     ;; Remove all hooks.
     (remove-hook 'change-major-mode-hook #'hl-line-fringe--delete t)
     (remove-hook 'post-command-hook #'hl-line-fringe--update t)
@@ -365,8 +371,9 @@ Else to defaults."
               (eq major-mode 'fundamental-mode)
               (memq major-mode hl-line-fringe-global-ignored-major-modes))
     (hl-line-fringe-mode 1)
-    (hl-line-fringe--line-change-face t)
-    (hl-line-fringe--indicator-change-face-and-indicator t)))
+    (with-current-buffer (window-buffer)
+      (hl-line-fringe--line-change-face t)
+      (hl-line-fringe--indicator-change-face-and-indicator t))))
 
 ;;;###autoload
 (define-globalized-minor-mode global-hl-line-fringe-mode hl-line-fringe-mode
