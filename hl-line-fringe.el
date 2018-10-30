@@ -168,6 +168,9 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 (defvar-local hl-line-fringe--indicator-overlay nil
   "Overlay used to indicate the current line in the fringe.")
 
+(defvar-local hl-line-fringe--line-beginning-position nil
+  "Last `line-beginning-position' of the current buffer.")
+
 (defvar hl-line-fringe--previous-buffer nil
   "Previous visited buffer. Needed to update overlays in inactive buffers.")
 
@@ -199,6 +202,20 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
       (setq hl-line-fringe--indicator-overlay ov))))
 
 ;; ** Move overlays
+
+(defun hl-line-fringe--move-overlays (line-hl indi)
+  "Move overlays to current line if `line-beginnning-position' changed.
+Move line highlight if LINE-HL is non-nil.
+Move fringe indicator if INDI is non-nil."
+  (let ((line-beg (line-beginning-position)))
+    (unless (equal line-beg hl-line-fringe--line-beginning-position)
+      (setq hl-line-fringe--line-beginning-position line-beg)
+      (when line-hl
+        (move-overlay hl-line-fringe--line-overlay
+                      line-beg
+                      (line-beginning-position 2)))
+      (when indi
+        (move-overlay hl-line-fringe--indicator-overlay line-beg line-beg)))))
 
 (defun hl-line-fringe--line-move ()
   "Move the line highlight overlay to current line."
@@ -353,14 +370,16 @@ Else to defaults."
         ;; In case `kill-all-local-variables' is called.
         (add-hook 'change-major-mode-hook #'hl-line-fringe--delete nil t)
         (hl-line-fringe--update-current)
-        (add-hook 'post-command-hook #'hl-line-fringe--update nil t)
+        (add-hook 'post-command-hook #'hl-line-fringe--update-current nil t)
+        (add-hook 'post-command-hook #'hl-line-fringe--update-previous)
         ;; TODO:
         ;; update previous prolly needs to be global if only activate in
         ;; 1 buffer?
         )
     ;; Remove all hooks.
     (remove-hook 'change-major-mode-hook #'hl-line-fringe--delete t)
-    (remove-hook 'post-command-hook #'hl-line-fringe--update t)
+    (remove-hook 'post-command-hook #'hl-line-fringe--update-current t)
+    (remove-hook 'post-command-hook #'hl-line-fringe--update-previous)
     (hl-line-fringe--delete)))
 
 ;; * Global minor mode
