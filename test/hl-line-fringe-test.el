@@ -67,7 +67,7 @@
     (let ((check
            (lambda (oll oli)
              ;; Looks like not called in batch mode.
-             (run-hooks 'post-command-hook)
+             ;; (run-hooks 'post-command-hook)
              (expect (overlay-start oll) :to-equal (line-beginning-position))
              (expect (overlay-end oll) :to-equal (line-beginning-position 2))
              (expect (overlay-start oli) :to-equal (line-beginning-position))
@@ -114,18 +114,16 @@
 (describe "After turning mode on in two buffers"
   :var (buf-a buf-i)
   (before-all
-    (setq hl-line-fringe-indicator-bitmap-inactive 'vertical-bar)
     (setq buf-i (switch-to-buffer "inactive.txt"))
     (text-mode)
     (hl-line-fringe-mode)
-    (run-hooks 'post-command-hook)
+    ;; (run-hooks 'post-command-hook)
     (setq buf-a (switch-to-buffer "active.txt"))
     (text-mode)
     (hl-line-fringe-mode)
-    (run-hooks 'post-command-hook))
+    ;; (run-hooks 'post-command-hook)
+    )
   (after-all
-    (setq hl-line-fringe-indicator-bitmap-inactive
-          'hl-line-fringe-indicator-bitmap-1)
     (kill-buffer buf-a)
     (kill-buffer buf-i))
 
@@ -156,7 +154,7 @@
                 'before-string))
               :to-equal
               `(left-fringe
-                vertical-bar
+                ,hl-line-fringe-indicator-bitmap-inactive
                 hl-line-fringe-indicator-inactive)))))
 
 ;; * Global mode
@@ -194,7 +192,7 @@
   (it "the line overlays in active and inactive buffers have the correct properties."
     ;; Only properties that can be active or inactive.
     (global-hl-line-fringe-mode)
-    (run-hooks 'post-command-hook)
+    ;; (run-hooks 'post-command-hook)
     (let ((cbuf (current-buffer)))
       (mapcar (lambda (buf)
                 (with-current-buffer buf
@@ -208,10 +206,9 @@
 
   (it "the indicator overlays in active and inactive buffers have the correct properties."
     ;; Only properties that can be active or inactive.
-    (let ((cbuf (current-buffer))
-          (hl-line-fringe-indicator-bitmap-inactive 'vertical-bar))
+    (let ((cbuf (current-buffer)))
       (global-hl-line-fringe-mode)
-      (run-hooks 'post-command-hook)
+      ;; (run-hooks 'post-command-hook)
       (mapcar (lambda (buf)
                 (with-current-buffer buf
                   (when (bound-and-true-p hl-line-fringe-mode)
@@ -234,7 +231,7 @@
                          'before-string))
                        :to-equal
                        `(left-fringe
-                         vertical-bar
+                         ,hl-line-fringe-indicator-bitmap-inactive
                          hl-line-fringe-indicator-inactive))))))
               (buffer-list))))
 
@@ -250,14 +247,14 @@
     (let (buf1
           buf2
           (hl-line-fringe-global-ignored-major-modes '(js-mode)))
-        (global-hl-line-fringe-mode)
-        ;; Using find-file to create a buffer with the correct major mode.
-        (setq buf1 (find-file "on.txt"))
-        (expect (bound-and-true-p hl-line-fringe-mode) :to-be t)
-        (setq buf1 (find-file "off.js"))
-        (expect (bound-and-true-p hl-line-fringe-mode) :to-be nil)
-        (kill-buffer buf1)
-        (kill-buffer buf2)))
+      (global-hl-line-fringe-mode)
+      ;; Using find-file to create a buffer with the correct major mode.
+      (setq buf1 (find-file "on.txt"))
+      (expect (bound-and-true-p hl-line-fringe-mode) :to-be t)
+      (setq buf1 (find-file "off.js"))
+      (expect (bound-and-true-p hl-line-fringe-mode) :to-be nil)
+      (kill-buffer buf1)
+      (kill-buffer buf2)))
 
   (it "after switching major mode the mode is on if appropriate."
     (global-hl-line-fringe-mode)
@@ -299,7 +296,7 @@
               :to-match hl-line-fringe-indicator-char)))
 
   (it "`hl-line-fringe-indicator-bitmap' the bitmap is changed."
-    (let ((hl-line-fringe-indicator-bitmap 'vertical-bar))
+    (let ((hl-line-fringe-indicator-bitmap 'filled-square))
       (hl-line-fringe-mode)
       (expect (get-text-property
                0 'display
@@ -308,7 +305,7 @@
                 'before-string))
               :to-equal
               '(left-fringe
-                vertical-bar
+                filled-square
                 hl-line-fringe-indicator))))
 
   (it "`hl-line-fringe-line-overlay-priority' the priority is changed."
@@ -335,9 +332,9 @@
     (it "is deleted after deactivating the buffer."
       (let ((hl-line-fringe-line-sticky nil))
         (hl-line-fringe-mode)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (switch-to-buffer buf-1)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (expect
          (overlay-start (buffer-local-value 'hl-line-fringe--line-overlay buf))
          :to-be nil)))
@@ -346,9 +343,9 @@
       (let ((hl-line-fringe-line-sticky nil))
         (hl-line-fringe-mode)
         (switch-to-buffer buf-1)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (switch-to-buffer buf)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (expect (overlay-start hl-line-fringe--line-overlay) :not :to-be nil))))
 
   (describe "`hl-line-fringe-indicator-sticky' to `nil' the overlay"
@@ -363,9 +360,9 @@
     (it "is deleted after deactivating the buffer."
       (let ((hl-line-fringe-indicator-sticky nil))
         (hl-line-fringe-mode)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (switch-to-buffer buf-1)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (expect
          (overlay-start
           (buffer-local-value 'hl-line-fringe--indicator-overlay buf))
@@ -374,11 +371,11 @@
     (it "and shown again after activating the buffer."
       (let ((hl-line-fringe-indicator-sticky nil))
         (hl-line-fringe-mode)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (switch-to-buffer buf-1)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (switch-to-buffer buf)
-        (run-hooks 'post-command-hook)
+        ;; (run-hooks 'post-command-hook)
         (expect (overlay-start hl-line-fringe--indicator-overlay)
                 :not :to-be nil))))
 
@@ -392,37 +389,35 @@
       (kill-buffer buf-1))
 
     (it "correct bitmap is shown after deactivating the buffer."
-      (let ((hl-line-fringe-indicator-bitmap-inactive 'vertical-bar))
-        (hl-line-fringe-mode)
-        (run-hooks 'post-command-hook)
-        (switch-to-buffer buf-1)
-        (run-hooks 'post-command-hook)
-        (expect
-         (get-text-property
-          0 'display
-          (overlay-get
-           (buffer-local-value 'hl-line-fringe--indicator-overlay buf)
-           'before-string))
-         :to-equal
-         `(left-fringe
-           ,hl-line-fringe-indicator-bitmap-inactive
-           hl-line-fringe-indicator-inactive))))
+      (hl-line-fringe-mode)
+      ;; (run-hooks 'post-command-hook)
+      (switch-to-buffer buf-1)
+      ;; (run-hooks 'post-command-hook)
+      (expect
+       (get-text-property
+        0 'display
+        (overlay-get
+         (buffer-local-value 'hl-line-fringe--indicator-overlay buf)
+         'before-string))
+       :to-equal
+       `(left-fringe
+         ,hl-line-fringe-indicator-bitmap-inactive
+         hl-line-fringe-indicator-inactive)))
 
     (it "correct bitmap is shown after activating the buffer again."
-      (let ((hl-line-fringe-indicator-bitmap-inactive 'vertical-bar))
-        (hl-line-fringe-mode)
-        (run-hooks 'post-command-hook)
-        (switch-to-buffer buf-1)
-        (run-hooks 'post-command-hook)
-        (switch-to-buffer buf)
-        (run-hooks 'post-command-hook)
-        (expect
-         (get-text-property
-          0 'display
-          (overlay-get
-           hl-line-fringe--indicator-overlay
-           'before-string))
-         :to-equal
-         `(left-fringe
-           ,hl-line-fringe-indicator-bitmap
-           hl-line-fringe-indicator))))))
+      (hl-line-fringe-mode)
+      ;; (run-hooks 'post-command-hook)
+      (switch-to-buffer buf-1)
+      ;; (run-hooks 'post-command-hook)
+      (switch-to-buffer buf)
+      ;; (run-hooks 'post-command-hook)
+      (expect
+       (get-text-property
+        0 'display
+        (overlay-get
+         hl-line-fringe--indicator-overlay
+         'before-string))
+       :to-equal
+       `(left-fringe
+         ,hl-line-fringe-indicator-bitmap
+         hl-line-fringe-indicator)))))

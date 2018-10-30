@@ -91,14 +91,35 @@ Higher priority overlays others with lower priority."
   "Character used to draw the indicator on character terminals."
   :type 'string)
 
-(defcustom hl-line-fringe-indicator-bitmap 'hl-line-fringe-indicator-bitmap-1
+(defcustom hl-line-fringe-indicator-bitmap
+  (if (fboundp 'define-fringe-bitmap)
+      (define-fringe-bitmap 'hl-line-fringe-indicator-bitmap-1
+        (vector #b11000000
+                #b11100000
+                #b11110000
+                #b11111000
+                #b11110000
+                #b11100000
+                #b11000000)
+        nil nil 'center)
+    'vertical-bar)
   "Fringe bitmap to use for the indicator.
 See `fringe-bitmaps' for other available ones, create one with
 `define-fringe-bitmap' or use package `fringe-helper' to create one."
   :type '(restricted-sexp :match-alternatives (fringe-bitmap-p)))
 
 (defcustom hl-line-fringe-indicator-bitmap-inactive
-  'hl-line-fringe-indicator-bitmap-2
+  (if (fboundp 'define-fringe-bitmap)
+      (define-fringe-bitmap 'hl-line-fringe-indicator-bitmap-2
+        (vector #b01000000
+                #b00100000
+                #b00010000
+                #b00001000
+                #b00010000
+                #b00100000
+                #b01000000)
+        nil nil 'center)
+    'horizontal-bar)
   "Fringe bitmap to use for the indicator if buffer is inactive.
 See `fringe-bitmaps' for other available ones, create one with
 `define-fringe-bitmap' or use package `fringe-helper' to create one."
@@ -148,28 +169,6 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 (defvar hl-line-fringe--previous-buffer nil
   "Previous visited buffer. Needed to update overlays in inactive buffers.")
 
-;; * Fringe bitmaps
-
-(define-fringe-bitmap 'hl-line-fringe-indicator-bitmap-1
-  (vector #b10000000
-          #b11000000
-          #b11100000
-          #b11110000
-          #b11100000
-          #b11000000
-          #b10000000)
-  nil nil 'center)
-
-(define-fringe-bitmap 'hl-line-fringe-indicator-bitmap-2
-  (vector #b10000000
-          #b11000000
-          #b10100000
-          #b10010000
-          #b10100000
-          #b11000000
-          #b10000000)
-  nil nil 'center)
-
 ;; * Functions
 
 ;; ** Make overlays
@@ -180,6 +179,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
     (let ((ov (make-overlay (point) (point))))
       (overlay-put ov 'priority hl-line-fringe-line-overlay-priority)
       (overlay-put ov 'face 'hl-line-fringe-line)
+      (overlay-put ov 'window (selected-window))
       (setq hl-line-fringe--line-overlay ov))))
 
 (defun hl-line-fringe--indicator-make ()
@@ -187,6 +187,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
   (unless (overlayp hl-line-fringe--indicator-overlay)
     (let ((ov (make-overlay (point) (point))))
       (overlay-put ov 'priority hl-line-fringe-indicator-overlay-priority)
+      (overlay-put ov 'window (selected-window))
       (overlay-put ov 'before-string
                    (propertize hl-line-fringe-indicator-char
                                'display
@@ -229,57 +230,69 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 
 ;; ** Update overlays
 
+;; Using `window-buffer' instead of `current-buffer' because current-buffer was
+;; not always the selected buffer when using after the post-command-hook.
+
 (defun hl-line-fringe--update ()
-  "Update the line highlight and the fringe indicator."
-  (hl-line-fringe--line-update)
-  (hl-line-fringe--indicator-update))
+  "Update line hightlight and fringe indicator in current and previous buffer."
+  (hl-line-fringe--update-current)
+  (hl-line-fringe--update-previous))
 
-(defun hl-line-fringe--line-update ()
-  "Update the line highlight in the current buffer."
-  (when (bound-and-true-p hl-line-fringe-mode)
-    (if hl-line-fringe-line
-        (progn
-          ;; Create the overlay if it doesn't exist.
-          (hl-line-fringe--line-make)
-          ;; Apply active face.
-          (hl-line-fringe--line-change-face nil)
-          ;; Move to the current line.
-          (hl-line-fringe--line-move))
-      ;; If `hl-line-fringe-line' is nil delete existing overlay.
-      (hl-line-fringe--line-delete))))
+;; *** Update overlays in current buffer
 
-(defun hl-line-fringe--indicator-update ()
-  "Update the fringe indicator in the current buffer."
-  (when (bound-and-true-p hl-line-fringe-mode)
-    (if hl-line-fringe-indicator
-        (progn
-          ;; Create the overlay if it doesn't exist.
-          (hl-line-fringe--indicator-make)
-          ;; Apply active face and indicator bitmap.
-          (hl-line-fringe--indicator-change-face-and-indicator nil)
-          ;; Move to the current line.
-          (hl-line-fringe--indicator-move))
-      ;; If `hl-line-fringe-indicator' is nil delete existing overlay.
-      (hl-line-fringe--indicator-delete))))
+(defun hl-line-fringe--update-current ()
+  "Update line highlight and fringe indicator in current buffer."
+  (hl-line-fringe--line-update-current)
+  (hl-line-fringe--indicator-update-current))
 
-;; ** Update previous overlays
+(defun hl-line-fringe--line-update-current ()
+  "Update line highlight in current buffer."
+  (with-current-buffer (window-buffer)
+    (when (bound-and-true-p hl-line-fringe-mode)
+      (if hl-line-fringe-line
+          (progn
+            ;; Create the overlay if it doesn't exist.
+            (hl-line-fringe--line-make)
+            ;; Apply active face.
+            (hl-line-fringe--line-change-face nil)
+            ;; Move to the current line.
+            (hl-line-fringe--line-move))
+        ;; If `hl-line-fringe-line' is nil delete existing overlay.
+        (hl-line-fringe--line-delete)))))
+
+(defun hl-line-fringe--indicator-update-current ()
+  "Update fringe indicator in current buffer."
+  (with-current-buffer (window-buffer)
+    (when (bound-and-true-p hl-line-fringe-mode)
+      (if hl-line-fringe-indicator
+          (progn
+            ;; Create the overlay if it doesn't exist.
+            (hl-line-fringe--indicator-make)
+            ;; Apply active face and indicator bitmap.
+            (hl-line-fringe--indicator-change-face-and-indicator nil)
+            ;; Move to the current line.
+            (hl-line-fringe--indicator-move))
+        ;; If `hl-line-fringe-indicator' is nil delete existing overlay.
+        (hl-line-fringe--indicator-delete)))))
+
+;; *** Update overlays in previous buffer
 
 (defun hl-line-fringe--update-previous ()
-  "Update the line highlight and fringe indicator in previous buffer.
+  "Update line highlight and fringe indicator in previous buffer.
 This either deletes the overlay or changes it's face to inactive."
   (unless (minibufferp)
     (let ((buf hl-line-fringe--previous-buffer)
-          (cur (current-buffer)))
+          (cur (window-buffer)))
       ;; Update overlays if current buffer is not the previous one.
       (when (and (buffer-live-p buf) ; Check if exists
                  (not (eq buf cur))) ; Check if not the same as current
         (hl-line-fringe--line-update-previous)
-        (hl-line-fringe--indicator-update-previous)))
-    ;; Update the previous buffer.
-    (setq hl-line-fringe--previous-buffer (current-buffer))))
+        (hl-line-fringe--indicator-update-previous))
+      ;; Update the previous buffer.
+      (setq hl-line-fringe--previous-buffer cur))))
 
 (defun hl-line-fringe--line-update-previous ()
-  "Update the highlight in previous buffer if mode is/was active.
+  "Update line highlight in previous buffer if mode is/was active.
 If `hl-line-fringe-line-sticky' is non-nil this changes the face to inactive.
 Else the overlay is deleted."
   (with-current-buffer hl-line-fringe--previous-buffer
@@ -337,12 +350,11 @@ Else to defaults."
       (progn
         ;; In case `kill-all-local-variables' is called.
         (add-hook 'change-major-mode-hook #'hl-line-fringe--delete nil t)
-        (hl-line-fringe--update)
-        (add-hook 'post-command-hook #'hl-line-fringe--update nil t)
-        (add-hook 'post-command-hook #'hl-line-fringe--update-previous nil nil))
+        (hl-line-fringe--update-current)
+        (add-hook 'post-command-hook #'hl-line-fringe--update nil t))
     ;; Remove all hooks.
+    (remove-hook 'change-major-mode-hook #'hl-line-fringe--delete t)
     (remove-hook 'post-command-hook #'hl-line-fringe--update t)
-    (remove-hook 'post-command-hook #'hl-line-fringe--update-previous nil)
     (hl-line-fringe--delete)))
 
 ;; * Global minor mode
