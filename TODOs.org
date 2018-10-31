@@ -1,0 +1,67 @@
+#+ARCHIVE: ::* Archive
+
+* TODO Window-buffer and current-buffer
+
+Use window-buffer For normal use window-buffer 
+
+* TODO Optimization
+
+Rewrite critical defuns (update).
+
+* TODO Overlays per window and buffer
+
+If the same buffer is shown in multiple windows there have to be multiple overlays with the property ~'window (selected-window)~.
+
+** Maybe use window parameters
+
+[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Parameters.html]]
+
+** Useful emacs stuff
+
+#+BEGIN_SRC emacs-lisp
+  ;; Use hook to maybe update overlays (change window)
+  ;; Use it buffer-local - documentation:
+  ;; Functions to call when window configuration changes. The buffer-local value is
+  ;; run once per window, with the relevant window selected; while the global value
+  ;; is run only once for the modified frame, with the relevant frame selected.
+  (add-hook 'window-configuration-change-hook #'fun nil t)
+
+  ;; Get first window displaying buffer BUFFER-OR-NAME, or nil if none.
+  (get-buffer-window "*scratch*" t)
+
+  ;; Return list of all windows displaying BUFFER-OR-NAME, or nil if none.
+  (get-buffer-window-list "*scratch*" -1 t)
+
+  ;; My-buffer is supposed to be the buffer you are looking for
+  (cond ((eq my-buffer (window-buffer (selected-window)))
+         (message "Visible and focused"))
+        ((get-buffer-window my-buffer)
+         (message "Visible and unfocused"))
+        (t
+         (message "Not visible")))
+
+  ;; List all visible live windows.
+  (window-list-1 nil -1 'visible)
+#+END_SRC
+
+* TODO Check fundamental-mode
+
+- Global mode: do new buffers in fundamental mode not trigger it.
+- Move fundamental-mode to ignored?
+- How to exclude echo area otherwise?
+
+* TODO Test
+
+** TODO Rewrite test after implementing new stuff
+ 
+* TODO Readme.org
+
+[[file+emacs:c:/Users/dh/AppData/Roaming/hl-line-fringe/README.org]]
+
+** TODO Add screenshots
+
+** TODO Verify default values of variables
+
+-----
+
+* Archive                                                           :ARCHIVE:

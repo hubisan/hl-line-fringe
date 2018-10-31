@@ -3,18 +3,20 @@
 [[https://travis-ci.org/hubisan/hl-line-fringe][https://travis-ci.org/hubisan/hl-line-fringe.svg?branch=master]] 
 [[https://www.gnu.org/licenses/gpl-3.0][https://img.shields.io/badge/License-GPL%20v3-blue.svg]]
 
+**Pre-release version, don't use this.**
+
+-----
+
 Highlight current line and/or indicate the current line in the fringe locally or
 globally.
 
 ** Main features
 
-TODO: Add screenshot for each.
-
-- Highlights the current line
-- * Indicates the current line in the fringe
-- * Different faces for current and inactive buffers
-- * Different bitmaps for the fringe indicator for current and
-  inactive buffers
+- Highlight the current line
+- * Indicate the current line in the fringe
+- * Different faces in current and inactive buffers
+- * Different fringe indicator bitmaps in current and inactive buffers
+- * If the same buffer is shown in multiple windows the sticky overlays are handled as expected
   
 \star not available with hl-line-mode
 
@@ -31,8 +33,7 @@ TODO: Add screenshot for each.
 
 * Usage
 
-Turn the mode on in a buffer with ~(hl-line-fringe-mode)~ or globally with
-~(global-hl-line-fringe-mode)~.
+Turn the mode on in a buffer with ~(hl-line-fringe-mode)~ or globally with ~(global-hl-line-fringe-mode)~.
 
 ** Customization
 
@@ -89,9 +90,9 @@ With [[https://github.com/jwiegley/use-package][use-package]]:
 
 * Changelog
 
-** 1.0.0                                                           :noexport:
+** 0.1.0                                                           :noexport:
 
-First stable version.
+First version on github, still very alpha.
 
 * Contributing
 
