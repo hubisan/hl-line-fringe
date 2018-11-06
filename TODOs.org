@@ -1,14 +1,6 @@
 #+ARCHIVE: ::* Archive
 
-* TODO Window-buffer and current-buffer
-
-Use window-buffer For normal use window-buffer 
-
-* TODO Optimization
-
-Rewrite critical defuns (update).
-
-* TODO Overlays per window and buffer
+* DOING Overlays per window and buffer
 
 If the same buffer is shown in multiple windows there have to be multiple overlays with the property ~'window (selected-window)~.
 
@@ -45,6 +37,11 @@ If the same buffer is shown in multiple windows there have to be multiple overla
   (window-list-1 nil -1 'visible)
 #+END_SRC
 
+* TODO Optimization
+
+Rewrite critical defuns (update).
+Implement first and then rewrite stuff that can be optimized.
+
 * TODO Check fundamental-mode
 
 - Global mode: do new buffers in fundamental mode not trigger it.
@@ -66,3 +63,15 @@ If the same buffer is shown in multiple windows there have to be multiple overla
 -----
 
 * Archive                                                           :ARCHIVE:
+
+** DONE Window-buffer and current-buffer
+CLOSED: [2018-11-06 Di 16:31]
+:PROPERTIES:
+:ARCHIVE_TIME: 2018-11-06 Di 16:31
+:ARCHIVE_FILE: ~/hl-line-fringe/TODOs.org
+:ARCHIVE_CATEGORY: TODOs
+:ARCHIVE_TODO: DONE
+:END:
+
+Use window-buffer For normal use window-buffer 
+
