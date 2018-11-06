@@ -207,12 +207,12 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
                      (pop hl-line-fringe--line-overlays-recycle-bin)
                    (make-overlay
                     (line-beginning-position)
-                    (line-beginning-position 2)))))
+                    (line-beginning-position 2))))
+        ;; Add the overlay to the stored overlay lists to be able to delete unused
+        ;; overlays.
+        (push ov hl-line-fringe--line-overlays))
       ;; Store the overlay as a window parameter.
       (set-window-parameter win 'hl-line-fringe-line ov)
-      ;; Add the overlay to the stored overlay lists to be able to delete unused
-      ;; overlays.
-      (push ov hl-line-fringe--line-overlays)
       ;; Set inital properties.
       (hl-line-fringe--set-line-overlay-properties win)
       ;; Return the overlay.
@@ -227,12 +227,12 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
         ;; Take overlay from recycle bin if exists else make a new one.
         (setq ov (if hl-line-fringe--indicator-overlays-recycle-bin
                      (pop hl-line-fringe--indicator-overlays-recycle-bin)
-                   (make-overlay line-beg line-beg))))
+                   (make-overlay line-beg line-beg)))
+        ;; Add the overlay to the stored overlay lists to be able to delete unused
+        ;; overlays.
+        (push ov hl-line-fringe--indicator-overlays))
       ;; Store the overlay as a window parameter.
       (set-window-parameter win 'hl-line-fringe-indicator ov)
-      ;; Add the overlay to the stored overlay lists to be able to delete unused
-      ;; overlays.
-      (push ov hl-line-fringe--indicator-overlays)
       ;; Set initial properties.
       (hl-line-fringe--set-indicator-overlay-properties win)
       ;; Return the overlay.
@@ -259,7 +259,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
       (unless (overlayp ov)
         (setq ov (hl-line-fringe--make-line-overlay win)))
       ;; Change face to use if buffer is inactive.
-      (unless (eq hl-line-fringe--active-buffer (current-buffer))
+      (unless (eq win (selected-window))
         (setq fa 'hl-line-fringe-line-inactive))
       ;; Set the overlay properties.
       (overlay-put ov 'priority hl-line-fringe-line-overlay-priority)
@@ -280,7 +280,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
       (unless (overlayp ov)
         (setq ov (hl-line-fringe--make-indicator-overlay win)))
       ;; Change face and bitmap to use if buffer is inactive.
-      (unless (eq hl-line-fringe--active-buffer (current-buffer))
+      (unless (eq win (selected-window))
         (setq fa 'hl-line-fringe-indicator-inactive)
         (setq ind hl-line-fringe-indicator-bitmap-inactive))
       ;; Set the overlay properties.
@@ -314,7 +314,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
       (unless (overlayp ov)
         (setq ov (hl-line-fringe--make-indicator-overlay win)))
       ;; Change face to use if buffer is inactive.
-      (unless (eq hl-line-fringe--active-buffer (current-buffer))
+      (unless (eq win (selected-window))
         (setq fa 'hl-line-fringe-line-inactive))
       ;; Set the overlay face.
       (overlay-put ov 'face fa)
@@ -333,7 +333,7 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
       (unless (overlayp ov)
         (setq ov (hl-line-fringe--make-indicator-overlay win)))
       ;; Change face and bitmap to use if buffer is inactive.
-      (unless (eq hl-line-fringe--active-buffer (current-buffer))
+      (unless (eq win (selected-window))
         (setq fa 'hl-line-fringe-indicator-inactive)
         (setq ind hl-line-fringe-indicator-bitmap-inactive))
       ;; Set the overlay face and bitmap.
@@ -379,6 +379,40 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
         (move-overlay ov beg beg (current-buffer))))))
 
 ;; *** Delete overlays
+
+;; *** Update overlays
+
+(defun hl-line-fringe--update-all-overlays ()
+  "Update all overlays in all windows.")
+
+;; *** Recycle overlays
+
+;; Move unused overlays to recycle bin.
+
+(defun hl-line-fringe--recycle-unused-overlays ()
+  "Recycle unused overlays."
+  (hl-line-fringe--recycle-unused-line-overlays)
+  (hl-line-fringe--recycle-unused-indicator-overlays))
+
+(defun hl-line-fringe--recycle-unused-line-overlays ()
+  "Delete unused line overlays and move to recycle bin."
+  (mapc (lambda (x)
+        (unless (window-live-p (overlay-get x 'window))
+          (setq hl-line-fringe--line-overlays
+                (delq x hl-line-fringe--line-overlays))
+          (delete-overlay x)
+          (push x hl-line-fringe--line-overlays-recycle-bin)))
+        hl-line-fringe--line-overlays))
+
+(defun hl-line-fringe--recycle-unused-indicator-overlays ()
+  "Delete unused indicator overlays and move to recycle bin."
+  (mapc (lambda (x)
+        (unless (window-live-p (overlay-get x 'window))
+          (setq hl-line-fringe--indicator-overlays
+                (delq x hl-line-fringe--indicator-overlays))
+          (delete-overlay x)
+          (push x hl-line-fringe--indicator-overlays-recycle-bin)))
+        hl-line-fringe--indicator-overlays))
 
 ;; *** Get overlays
 
