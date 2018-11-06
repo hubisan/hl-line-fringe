@@ -165,14 +165,23 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 (defvar hl-line-fringe--line-overlays nil
   "List of overlays used to highlight the current line.")
 
+(defvar hl-line-fringe--line-overlays-recycle-bin nil
+  "List of unused (deleted) overlays to highlight the current line.")
+
 (defvar hl-line-fringe--indicator-overlays nil
   "List of overlays used to indicate the current line in the fringe.")
 
-(defvar hl-line-fringe--line-beginning-position nil
-  "Stored `line-beginning-position' in the active buffer.")
+(defvar hl-line-fringe--indicator-overlays-recycle-bin nil
+  "List of unused (deleted) overlays to indicate current line in the fringe.")
 
-(defvar hl-line-fringe--buffer nil
-  "Active buffer.")
+(defvar hl-line-fringe--buffers nil
+  "List of buffers with `hl-line-fringe-mode' on.")
+
+(defvar hl-line-fringe--line-beginning-position nil
+  "`line-beginning-position' in the active (focused) buffer.")
+
+(defvar hl-line-fringe--active-buffer nil
+  "Active (focused) buffer.")
 
 ;; * Functions
 
@@ -180,48 +189,57 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 
 (defun hl-line-fringe--make-overlays (win)
   ""
-  (when hl-line-fringe-line
-    (hl-line-fringe--make-line-overlay win))
-  (when hl-line-fringe-indicator
-    (hl-line-fringe--make-indicator-overlay win)))
+  (unless (window-minibuffer-p win)
+    (with-current-buffer (window-buffer win)
+      (when hl-line-fringe-line
+        (hl-line-fringe--make-line-overlay win))
+      (when hl-line-fringe-indicator
+        (hl-line-fringe--make-indicator-overlay win)))))
 
 (defun hl-line-fringe--make-line-overlay (win)
   ""
   (unless (overlayp (window-parameter win 'hl-line-fringe-line))
-    (with-current-buffer (window-buffer win)
-      (let ((ov (make-overlay
-                 (line-beginning-position)
-                 (line-beginning-position 2)))
-            (fa 'hl-line-fringe-line))
-        (overlay-put ov 'priority hl-line-fringe-line-overlay-priority)
-        (overlay-put ov 'window win)
-        (unless (equal (hl-line-fringe--buffer-status (current-buffer))
-                       'active)
-          (setq fa 'hl-line-fringe-line-inactive))
-        (overlay-put ov 'face fa)
-        (set-window-parameter win 'hl-line-fringe-line ov)))))
+    (let (ov fa)
+      ;; Take overlay from recycle bin if exists else make a new one.
+      (setq ov (if hl-line-fringe--line-overlays-recycle-bin
+                   (pop hl-line-fringe--line-overlays-recycle-bin)
+                 (make-overlay
+                  (line-beginning-position)
+                  (line-beginning-position 2))))
+      ;; Set face depending on state of buffer.
+      (setq (fa (if (eq hl-line-fringe--active-buffer (current-buffer))
+                  ('hl-line-fringe-line)
+                ('hl-line-fringe-line-inactive))))
+      ;; Set the overlay properties.
+      (overlay-put ov 'priority hl-line-fringe-line-overlay-priority)
+      (overlay-put ov 'face fa)
+      (overlay-put ov 'hl-line-fringe-line t)
+      ;; Make it only be visible in the current window. This is important when
+      ;; the same buffer is visible in multiple windows.
+      (overlay-put ov 'window win)
+      ;; Store the overlay as a window parameter.
+      (set-window-parameter win 'hl-line-fringe-line ov)
+      ;; Add the overlay to the stored overlay lists to be able to delete unused
+      ;; overlays.
+      (push ov hl-line-fringe--line-overlays))))
 
 (defun hl-line-fringe--make-indicator-overlay (win)
   ""
   (unless (overlayp (window-parameter win 'hl-line-fringe-indicator))
-    (with-current-buffer (window-buffer win)
-      (let* ((line-beg (line-beginning-position))
-             (ov (make-overlay line-beg line-beg))
-             (fa 'hl-line-fringe-indicator)
-             (ind hl-line-fringe-indicator-bitmap))
-        (overlay-put ov 'priority hl-line-fringe-indicator-overlay-priority)
-        (overlay-put ov 'window win)
-        (unless (equal (hl-line-fringe--buffer-status (current-buffer))
-                       'active)
-          (setq fa 'hl-line-fringe-indicator-inactive)
-          (setq ind hl-line-fringe-indicator-bitmap-inactive))
-        (overlay-put ov 'before-string
-                     (propertize hl-line-fringe-indicator-char
-                                 'display
-                                 `(left-fringe
-                                   ,ind
-                                   ,fa)))
-        (set-window-parameter win 'hl-line-fringe-indicator ov)))))
+    (let* (ov fa (line-beg (line-beginning-position))
+           (ov (make-overlay line-beg line-beg))
+           (fa 'hl-line-fringe-indicator)
+           (ind hl-line-fringe-indicator-bitmap))
+      (unless (eq hl-line-fringe--active-buffer (current-buffer))
+        (setq fa 'hl-line-fringe-indicator-inactive)
+        (setq ind hl-line-fringe-indicator-bitmap-inactive))
+      (overlay-put ov 'priority hl-line-fringe-indicator-overlay-priority)
+      (overlay-put ov 'window win)
+      (overlay-put ov 'before-string
+                   (propertize hl-line-fringe-indicator-char
+                               'display `(left-fringe ,ind ,fa)))
+      (set-window-parameter win 'hl-line-fringe-indicator ov)
+      (push ov hl-line-fringe--indicator-overlays))))
 
 ;; ** Move overlays
 
@@ -260,12 +278,14 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 
 ;; * Init
 
-(defun hl-line-fringe--init ()
-  "Initialize the overlays in each live window."
-  (walk-windows (lambda (win)
-                  (with-current-buffer (window-buffer win)
-                    ())))
-  )
+(defun hl-line-fringe--global-init ()
+  "Initialize the overlays for `global-hl-line-fringe-mode'."
+  (setq hl-line-fringe--active-buffer (window-buffer (selected-window)))
+  (walk-windows #'hl-line-fringe--global-init-fun nil t))
+
+(defun hl-line-fringe--global-init-fun (win)
+  ""
+  (hl-line-fringe--make-overlays win))
 
 ;; * Destroy
 
