@@ -31,6 +31,7 @@ If the same buffer is shown in multiple windows there have to be multiple overla
 
   ;; Return list of all windows displaying BUFFER-OR-NAME, or nil if none.
   (get-buffer-window-list "*scratch*" -1 t)
+  (length (get-buffer-window-list "*scratch*" -1 t))
 
   ;; My-buffer is supposed to be the buffer you are looking for
   (cond ((eq my-buffer (window-buffer (selected-window)))
