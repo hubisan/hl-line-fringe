@@ -162,6 +162,10 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 
 ;; * Variables
 
+;; TODO Can be removed? See auxiliary function.
+(defvar hl-line-fringe--mode-prefix "hl-line-fringe-"
+  "Prefix used for variables and function names.")
+
 (defvar hl-line-fringe--line-overlays nil
   "List of overlays used to highlight the current line.")
 
@@ -177,11 +181,8 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 (defvar hl-line-fringe--buffers nil
   "List of buffers with `hl-line-fringe-mode' on.")
 
-(defvar hl-line-fringe--line-beginning-position nil
-  "`line-beginning-position' in the active (focused) buffer.")
-
-(defvar hl-line-fringe--active-buffer nil
-  "Active (focused) buffer.")
+(defvar hl-line-fringe--selected-window nil
+  "Store focused window to detect changes.")
 
 ;; * Functions
 
@@ -189,265 +190,217 @@ This only applies if `hl-line-fringe-indicator-sticky' is non-nil.")
 
 ;; Make the overlays. Recycle existing overlays if possible.
 
-(defun hl-line-fringe--make-overlays (win)
-  "Make both overlays in window WIN if appropriate."
-  (unless (window-minibuffer-p win)
-    (when hl-line-fringe-line
-      (hl-line-fringe--make-line-overlay win))
-    (when hl-line-fringe-indicator
-      (hl-line-fringe--make-indicator-overlay win))))
+(defun hl-line-fringe--make-all-overlays ()
+  "Make all overlays in all windows if appropriate."
+  (walk-windows (lambda (win)
+                  (unless (window-minibuffer-p win)
+                    (with-current-buffer (window-buffer win)
+                      (hl-line-fringe--make-both-overlays win))))
+                nil t))
 
-(defun hl-line-fringe--make-line-overlay (win)
-  "Make line overlay in window WIN."
-  (with-current-buffer (window-buffer win)
-    (let ((ov (hl-line-fringe--get-line-overlay win)))
-      (unless (overlayp ov)
-        ;; Take overlay from recycle bin if exists else make a new one.
-        (setq ov (if hl-line-fringe--line-overlays-recycle-bin
-                     (pop hl-line-fringe--line-overlays-recycle-bin)
-                   (make-overlay
-                    (line-beginning-position)
-                    (line-beginning-position 2))))
-        ;; Add the overlay to the stored overlay lists to be able to delete unused
-        ;; overlays.
-        (push ov hl-line-fringe--line-overlays))
-      ;; Store the overlay as a window parameter.
-      (set-window-parameter win 'hl-line-fringe-line ov)
-      ;; Set inital properties.
-      (hl-line-fringe--set-line-overlay-properties win)
-      ;; Return the overlay.
-      ov)))
+(defun hl-line-fringe--make-both-overlays (win)
+  "Make both overlays at current line in window WIN if appropriate."
+  (when hl-line-fringe-line (hl-line-fringe--make-overlay 'line win))
+  (when hl-line-fringe-indicator (hl-line-fringe--make-overlay 'indicator win)))
 
-(defun hl-line-fringe--make-indicator-overlay (win)
-  "Make indicator overlay in window WIN."
-  (with-current-buffer (window-buffer win)
-    (let ((ov (hl-line-fringe--get-indicator-overlay win))
-          (line-beg (line-beginning-position)))
-      (unless (overlayp ov)
-        ;; Take overlay from recycle bin if exists else make a new one.
-        (setq ov (if hl-line-fringe--indicator-overlays-recycle-bin
-                     (pop hl-line-fringe--indicator-overlays-recycle-bin)
-                   (make-overlay line-beg line-beg)))
-        ;; Add the overlay to the stored overlay lists to be able to delete unused
-        ;; overlays.
-        (push ov hl-line-fringe--indicator-overlays))
+(defun hl-line-fringe--make-overlay (type win)
+  "Make overlay of TYPE in window WIN.
+TYPE can be 'line or 'indicator."
+  (let* ((ovs-sym (hl-line-fringe--get-overlays type))
+         (bin-sym (hl-line-fringe--get-bin type))
+         (ovs (symbol-value ovs-sym))
+         (bin (symbol-value bin-sym))
+         ov)
+    ;; Check if there is already a overlay in the window.
+    (setq ov (hl-line-fringe--get-overlay-in-window type win))
+    (unless (overlayp ov)
+      ;; Else take overlay from recycle bin if exists or make a new one.
+      (if bin
+          (progn
+            (setq ov (pop bin))
+            ;; Update the global recycle bin variable.
+            (set bin-sym bin))
+        (setq ov (make-overlay 1 1)))
+      ;; Add the overlay to the stored overlay lists to be able to delete unused
+      ;; overlays afterwards.
+      (set ovs-sym (push ov ovs))
       ;; Store the overlay as a window parameter.
-      (set-window-parameter win 'hl-line-fringe-indicator ov)
-      ;; Set initial properties.
-      (hl-line-fringe--set-indicator-overlay-properties win)
-      ;; Return the overlay.
-      ov)))
+      (set-window-parameter win (hl-line-fringe--get-win type) ov))
+    ;; Set the fixed (don't change) properties.
+    (hl-line-fringe--set-fixed-overlay-properties type win)
+    ;; Set variable (need to be updated after buffer/window change) properties.
+    (hl-line-fringe--set-variable-overlay-properties type win)
+    ;; Move the overlay to the current line in the appropriate buffer.
+    (hl-line-fringe--move-overlay type win)
+    ov))
 
 ;; *** Set overlay properties
 
-;; Set the initial properties for the overlays.
+;; Set the fixed and variable properties for the overlays.
+;; The fixed properties never change unless the mode is turned off and on again.
+;; The variable properties need to change after changes of window configuration,
+;; switching buffer or focusing another window to change the appearance of the
+;; overlays.
 
-(defun hl-line-fringe--set-overlay-properties (win)
-  "Set initial properties for both overlays in window WIN if appropriate."
-  (unless (window-minibuffer-p win)
-    (when hl-line-fringe-line
-      (hl-line-fringe--set-line-overlay-properties win))
-    (when hl-line-fringe-indicator
-      (hl-line-fringe--set-indicator-overlay-properties win))))
-
-(defun hl-line-fringe--set-line-overlay-properties (win)
+(defun hl-line-fringe--set-fixed-overlay-properties (type win)
   "Set initial properties for line overlay in window WIN."
-  (with-current-buffer (window-buffer win)
-    (let ((ov (hl-line-fringe--get-line-overlay win))
-          (fa 'hl-line-fringe-line))
-      ;; Create overlay if it doesn't exist.
-      (unless (overlayp ov)
-        (setq ov (hl-line-fringe--make-line-overlay win)))
-      ;; Change face to use if buffer is inactive.
-      (unless (eq win (selected-window))
-        (setq fa 'hl-line-fringe-line-inactive))
-      ;; Set the overlay properties.
-      (overlay-put ov 'priority hl-line-fringe-line-overlay-priority)
-      (overlay-put ov 'face fa)
-      (overlay-put ov 'hl-line-fringe-line t)
-      ;; Make it only be visible in the current window. This is important when
-      ;; the same buffer is visible in multiple windows.
-      (overlay-put ov 'window win)
-      ov)))
+  (let ((ov (hl-line-fringe--get-overlay-in-window type win)))
+    ;; Set the overlay properties.
+    (overlay-put ov 'priority (if (equal type 'line)
+                                  hl-line-fringe-line-overlay-priority
+                                hl-line-fringe-indicator-overlay-priority))
+    (overlay-put ov 'hl-line-fringe t)
+    ov))
 
-(defun hl-line-fringe--set-indicator-overlay-properties (win)
-  "Set initial properties for indicator overlay in window WIN."
-  (with-current-buffer (window-buffer win)
-    (let ((ov (hl-line-fringe--get-indicator-overlay win))
-          (fa 'hl-line-fringe-indicator)
-          (ind hl-line-fringe-indicator-bitmap))
-      ;; Create overlay if it doesn't exist.
-      (unless (overlayp ov)
-        (setq ov (hl-line-fringe--make-indicator-overlay win)))
-      ;; Change face and bitmap to use if buffer is inactive.
-      (unless (eq win (selected-window))
-        (setq fa 'hl-line-fringe-indicator-inactive)
-        (setq ind hl-line-fringe-indicator-bitmap-inactive))
-      ;; Set the overlay properties.
-      (overlay-put ov 'priority hl-line-fringe-indicator-overlay-priority)
-      (overlay-put ov 'before-string
-                   (propertize hl-line-fringe-indicator-char
-                               'display `(left-fringe ,ind ,fa)))
-      ;; Make it only be visible in the current window. This is important when
-      ;; the same buffer is visible in multiple windows.
-      (overlay-put ov 'window win)
-      ov)))
-
-;; *** Update overlay properties
-
-;; Update the dynamic properties of the overlays (face & bitmap).
-
-(defun hl-line-fringe--udpate-overlay-properties (win)
-  "Upate the dynamic properties of both overlays in WIN if appropriate."
-  (unless (window-minibuffer-p win)
-    (when hl-line-fringe-line
-      (hl-line-fringe--update-line-overlay-properties win))
-    (when hl-line-fringe-indicator
-      (hl-line-fringe--update-indicator-overlay-properties win))))
-
-(defun hl-line-fringe--update-line-overlay-properties (win)
-  "Update dynamic properties for line overlay in window WIN."
-  (with-current-buffer (window-buffer win)
-    (let ((ov (hl-line-fringe--get-line-overlay win))
-          (fa 'hl-line-fringe-line))
-      ;; Create overlay if it doesn't exist.
-      (unless (overlayp ov)
-        (setq ov (hl-line-fringe--make-indicator-overlay win)))
-      ;; Change face to use if buffer is inactive.
-      (unless (eq win (selected-window))
-        (setq fa 'hl-line-fringe-line-inactive))
-      ;; Set the overlay face.
-      (overlay-put ov 'face fa)
-      ;; Make it only be visible in the current window. This is important when
-      ;; the same buffer is visible in multiple windows.
-      (overlay-put ov 'window win)
-      ov)))
-
-(defun hl-line-fringe--udpate-indicator-overlay-properties (win)
-  "Set initial properties for indicator overlay in window WIN."
-  (with-current-buffer (window-buffer win)
-    (let ((ov (hl-line-fringe--get-indicator-overlay win))
-          (fa 'hl-line-fringe-indicator)
-          (ind hl-line-fringe-indicator-bitmap))
-      ;; Create overlay if it doesn't exist.
-      (unless (overlayp ov)
-        (setq ov (hl-line-fringe--make-indicator-overlay win)))
-      ;; Change face and bitmap to use if buffer is inactive.
-      (unless (eq win (selected-window))
-        (setq fa 'hl-line-fringe-indicator-inactive)
-        (setq ind hl-line-fringe-indicator-bitmap-inactive))
-      ;; Set the overlay face and bitmap.
-      (overlay-put ov 'before-string
-                   (propertize hl-line-fringe-indicator-char
-                               'display `(left-fringe ,ind ,fa)))
-      ;; Make it only be visible in the current window. This is important when
-      ;; the same buffer is visible in multiple windows.
-      (overlay-put ov 'window win)
-      ov)))
+(defun hl-line-fringe--set-variable-overlay-properties (type win)
+  "Set initial properties for line overlay in window WIN."
+  (let ((ov (hl-line-fringe--get-overlay-in-window type win))
+        (active (eq win (selected-window))))
+    (if (equal type 'line)
+        (overlay-put ov 'face (if active
+                                  'hl-line-fringe-line
+                                'hl-line-fringe-line-inactive))
+      (let ((fa 'hl-line-fringe-indicator)
+            (ind hl-line-fringe-indicator-bitmap))
+        ;; Change face and bitmap to use if buffer is inactive.
+        (unless active
+          (setq fa 'hl-line-fringe-indicator-inactive)
+          (setq ind hl-line-fringe-indicator-bitmap-inactive))
+        (overlay-put ov 'before-string
+                     (propertize hl-line-fringe-indicator-char
+                                 'display `(left-fringe ,ind ,fa)))))
+    ;; Make it only be visible in the current window. This is important when
+    ;; the same buffer is visible in multiple windows.
+    (overlay-put ov 'window win)
+    ov))
 
 ;; *** Move overlays
 
 ;; Move the overlays to the current line.
 
-(defun hl-line-fringe--move-overlays (win)
+(defun hl-line-fringe--move-both-overlays (win)
   "Move both overlays in window WIN to current line if appropriate."
-  (when hl-line-fringe-line
-    (hl-line-fringe--move-line-overlay win))
-  (when hl-line-fringe-indicator
-    (hl-line-fringe--move-indicator-overlay win)))
+  (when hl-line-fringe-line (hl-line-fringe--move-line-overlay win))
+  (when hl-line-fringe-indicator (hl-line-fringe--move-indicator-overlay win)))
 
-(defun hl-line-fringe--move-line-overlay (win)
+(defun hl-line-fringe--move-overlay (type win)
   "Move line overlay in window WIN to current line."
-  (with-current-buffer (window-buffer win)
-    (save-excursion
-      (goto-char (window-point win))
-      (let ((beg (line-beginning-position))
-            (ov (hl-line-fringe--get-line-overlay win)))
-        (unless (overlayp ov)
-          (setq ov (hl-line-fringe--make-line-overlay win)))
-        (move-overlay ov beg (line-beginning-position 2) (current-buffer))))))
-
-(defun hl-line-fringe--move-indicator-overlay (win)
-  "Move indicator overlay in window WIN to current line."
-  (with-current-buffer (window-buffer win)
-    (save-excursion
-      (goto-char (window-point win))
-      (let ((beg (line-beginning-position))
-            (ov (hl-line-fringe--get-indicator-overlay win)))
-        (unless (overlayp ov)
-          (setq ov (hl-line-fringe--make-indicator-overlay win)))
-        (move-overlay ov beg beg (current-buffer))))))
-
-;; *** Delete overlays
+  (save-excursion
+    (goto-char (window-point win))
+    (let* ((beg (line-beginning-position))
+          (end (if (equal type 'line) (line-beginning-position 2) beg))
+          (ov (hl-line-fringe--get-overlay-in-window type win)))
+      (move-overlay ov beg end (current-buffer)))))
 
 ;; *** Update overlays
 
 (defun hl-line-fringe--update-all-overlays ()
-  "Update all overlays in all windows.")
+  "Update all overlays in all windows if appropriate.")
 
-;; *** Recycle overlays
+(defun hl-line-fringe--update-both-overlays (win)
+  "Update both overlays in window WIN if appropriate.")
 
-;; Move unused overlays to recycle bin.
+;; *** Delete overlays.
 
-(defun hl-line-fringe--recycle-unused-overlays ()
-  "Recycle unused overlays."
-  (hl-line-fringe--recycle-unused-line-overlays)
-  (hl-line-fringe--recycle-unused-indicator-overlays))
+;; A deleted overlay continues to exist as a Lisp object, and its property list
+;; is unchanged, but it ceases to be attached to the buffer it belonged to, and
+;; ceases to have any effect on display. Therefore this mode stores deleted
+;; overlays in a recycle bin to be able to reause them.
 
-(defun hl-line-fringe--recycle-unused-line-overlays ()
-  "Delete unused line overlays and move to recycle bin."
-  (mapc (lambda (x)
-        (unless (window-live-p (overlay-get x 'window))
-          (setq hl-line-fringe--line-overlays
-                (delq x hl-line-fringe--line-overlays))
-          (delete-overlay x)
-          (push x hl-line-fringe--line-overlays-recycle-bin)))
-        hl-line-fringe--line-overlays))
+(defun hl-line-fringe--delete-all-overlays ()
+  "Delete all overlays and move to recycle bin."
+  (hl-line-fringe--delete-overlay 'line t)
+  (hl-line-fringe--delete-overlay 'indicator t))
 
-(defun hl-line-fringe--recycle-unused-indicator-overlays ()
-  "Delete unused indicator overlays and move to recycle bin."
-  (mapc (lambda (x)
-        (unless (window-live-p (overlay-get x 'window))
-          (setq hl-line-fringe--indicator-overlays
-                (delq x hl-line-fringe--indicator-overlays))
-          (delete-overlay x)
-          (push x hl-line-fringe--indicator-overlays-recycle-bin)))
-        hl-line-fringe--indicator-overlays))
+(defun hl-line-fringe--delete-unused-overlays ()
+  "Delete unused overlays and move to recycle bin."
+  (hl-line-fringe--delete-overlay 'line nil)
+  (hl-line-fringe--delete-overlay 'indicator nil))
+
+(defun hl-line-fringe--delete-overlay (type all)
+  "Delete overlays and move to recycle bin to reuse later on.
+TYPE can be 'line or 'indicator. If ALL is non-nil all overlays are deleted and
+moved else only unused overlays."
+  (let* ((ovs-sym (hl-line-fringe--get-overlays type))
+         (bin-sym (hl-line-fringe--get-bin type))
+        (ovs (symbol-value ovs-sym))
+        (bin (symbol-value bin-sym)))
+    (dolist (item ovs)
+      (when (or all (not (window-live-p (overlay-get item 'window))))
+        ;; Remove overlay from list.
+        (setq ovs (delq item ovs))
+        ;; Delete the overlay.
+        (delete-overlay item)
+        ;; Add to recycle bin.
+        (push item bin)))
+    ;; Set the symbols to be able to change them.
+    ;; https://stackoverfow.com/questions/1249991/variable-references-in-lisp
+    (set ovs-sym ovs)
+    (set bin-sym bin)))
 
 ;; *** Get overlays
 
-(defun hl-line-fringe--get-line-overlay (win)
-  "Get the line overlay in window WIN."
-  (window-parameter win 'hl-line-fringe-line))
-
-(defun hl-line-fringe--get-indicator-overlay (win)
-  "Get the indicator overlay in window WIN."
-  (window-parameter win 'hl-line-fringe-indicator))
+(defun hl-line-fringe--get-overlay-in-window (type win)
+  "Get the overlay of TYPE 'line or 'indicator in window WIN.
+TYPE can be 'line or 'indicator."
+  (window-parameter win (hl-line-fringe--get-win type)))
 
 ;; ** Auxiliary
 
-(defun hl-line-fringe--buffer-status (buf)
-  "Get the status of buffer BUF."
-  (cond ((eq buf (window-buffer (selected-window))) 'active)
-        ((get-buffer-window buf) 'visible)
-        (t 'hidden)))
+(defun hl-line-fringe--get-overlays (type)
+  "Get the symbol of the overlays list depending on TYPE.
+TYPE can be 'line or 'indicator."
+  (cond ((equal type 'line) 'hl-line-fringe--line-overlays)
+        ((equal type 'indicator) 'hl-line-fringe--indicator-overlays)
+        (t (error "TYPE is not valid."))))
+
+(defun hl-line-fringe--get-bin (type)
+  "Get the symbol of the recycle bin depending on TYPE.
+TYPE can be 'line or 'indicator."
+  (cond
+   ((equal type 'line) 'hl-line-fringe--line-overlays-recycle-bin)
+   ((equal type 'indicator) 'hl-line-fringe--indicator-overlays-recycle-bin)
+   (t (error "TYPE is not valid."))))
+
+(defun hl-line-fringe--get-win (type)
+  "Get the symbol to use for window-parameter depending on TYPE.
+TYPE can be 'line or 'indicator."
+  (cond ((equal type 'line) 'hl-line-fringe-line)
+        ((equal type 'indicator) 'hl-line-fringe-indicator)
+        (t (error "TYPE is not valid."))))
+
+;; TODO probably not needed, delete?
+(defun hl-line-fringe--get-symbol (private type prefix suffix)
+  "Get the symbol of a hl-line-fringe variable or function.
+Returns nil if symbol doesn't exist. If PRIVATE is non-nil another \"-\" is
+added to `hl-line-fringe--mode-prefix'. The TYPE can be 'line, 'indicator or
+shorthand 'indi. The PREFIX is added before the type, the SUFFIX after the
+type."
+  (let* ((ov-type
+         (cond ((equal type 'line) "line")
+               ((or (equal type 'indicator)
+                    (equal type 'indi))
+                "indicator")
+               (t (error "TYPE is not valid.")))))
+    (intern-soft
+     (concat hl-line-fringe--mode-prefix
+             (when private "-")
+             (when prefix (concat prefix "-"))
+             ov-type
+             (when suffix (concat "-" suffix))))))
 
 ;; * Events
 
-;; Functions triggered by hooks.
+;; Functions triggered by hooks or advising.
+
+;; TODO needs to be tested, especially `selected-window'.
+;; https://emacs.stackexchange.com/questions/13842/how-to-get-the-window-for-mode-line-format
 
 ;; * Init
 
 (defun hl-line-fringe--global-init ()
-  "Initialize the overlays for `global-hl-line-fringe-mode'."
-  (setq hl-line-fringe--active-buffer (window-buffer (selected-window)))
-  (walk-windows #'hl-line-fringe--global-init-fun nil t))
-
-(defun hl-line-fringe--global-init-fun (win)
-  ""
-  (with-current-buffer (window-buffer win)
-    (hl-line-fringe--make-overlays win)
-    (hl-line-fringe--move-overlays win)))
+  "Initialize `global-hl-line-fringe-mode'."
+  (hl-line-fringe--make-all-overlays))
 
 ;; * Destroy
 
