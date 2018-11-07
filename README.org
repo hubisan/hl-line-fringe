@@ -27,6 +27,7 @@ globally.
 - [[#usage][Usage]]
   - [[#customization][Customization]]
   - [[#faces][Faces]]
+- [[#installation][Installation]]
 - [[#changelog][Changelog]]
 - [[#contributing][Contributing]]
 #+END_QUOTE
@@ -59,7 +60,7 @@ The following faces are defined:
 - ~hl-line-fringe-indicator~ :: Face used to indicate the current line in the fringe if buffer is active.
 - ~hl-line-fringe-indicator-inactive~ :: Face used to indicate the current line in the fringe if buffer is inactive.
     
-* COMMENT Installation
+* Installation
 
 Install the ivy package from MELPA.
 
@@ -103,4 +104,11 @@ Before submitting a change run ~make~ to:
  - run the tests,
  - checkdoc,
  - package-lint 
- - and elisp-lint. 
+ - and elisp-lint.
+   
+* Remarks                                                          :noexport:
+
+Using two overlays instead of one to be able to use another priority for the
+fringe indicator. Without that the fringe indicator could be just added to the
+other overlay as 'before-string property. But this would hide the indicator
+behind many other fringe bitmaps.
