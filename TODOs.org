@@ -1,14 +1,66 @@
 #+ARCHIVE: ::* Archive
 
-* DOING Overlays per window and buffer
+* TODO Clean & Optimize
+
+Rewrite critical defuns (update).
+Implement first and then rewrite stuff that can be optimized.
+
+* TODO Test
+
+** TODO Rewrite test after implementing new stuff
+ 
+* TODO Readme.org
+
+[[file+emacs:c:/Users/dh/AppData/Roaming/hl-line-fringe/README.org]]
+
+** TODO Add screenshots
+
+** TODO Verify default values of variables
+
+-----
+
+* Archive                                                           :ARCHIVE:
+
+** DONE Window-buffer and current-buffer
+CLOSED: [2018-11-06 Di 16:31]
+:PROPERTIES:
+:ARCHIVE_TIME: 2018-11-06 Di 16:31
+:ARCHIVE_FILE: ~/hl-line-fringe/TODOs.org
+:ARCHIVE_CATEGORY: TODOs
+:ARCHIVE_TODO: DONE
+:END:
+
+Use window-buffer For normal use window-buffer
+
+** DONE Check fundamental-mode
+CLOSED: [2018-11-09 Fre 01:58]
+:PROPERTIES:
+:ARCHIVE_TIME: 2018-11-09 Fre 01:58
+:ARCHIVE_FILE: ~/hl-line-fringe/TODOs.org
+:ARCHIVE_CATEGORY: TODOs
+:ARCHIVE_TODO: DONE
+:END:
+
+- Global mode: do new buffers in fundamental mode not trigger it.
+- Move fundamental-mode to ignored?
+- How to exclude echo area otherwise?
+
+** DONE Overlays per window and buffer
+CLOSED: [2018-11-09 Fre 01:58]
+:PROPERTIES:
+:ARCHIVE_TIME: 2018-11-09 Fre 01:58
+:ARCHIVE_FILE: ~/hl-line-fringe/TODOs.org
+:ARCHIVE_CATEGORY: TODOs
+:ARCHIVE_TODO: DONE
+:END:
 
 If the same buffer is shown in multiple windows there have to be multiple overlays with the property ~'window (selected-window)~.
 
-** Maybe use window parameters
+*** Maybe use window parameters
 
 [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Parameters.html]]
 
-** Useful emacs stuff
+*** Useful emacs stuff
 
 #+BEGIN_SRC emacs-lisp
   ;; Use hook to maybe update overlays (change window)
@@ -37,41 +89,14 @@ If the same buffer is shown in multiple windows there have to be multiple overla
   (window-list-1 nil -1 'visible)
 #+END_SRC
 
-* TODO Optimization
-
-Rewrite critical defuns (update).
-Implement first and then rewrite stuff that can be optimized.
-
-* TODO Check fundamental-mode
-
-- Global mode: do new buffers in fundamental mode not trigger it.
-- Move fundamental-mode to ignored?
-- How to exclude echo area otherwise?
-
-* TODO Test
-
-** TODO Rewrite test after implementing new stuff
- 
-* TODO Readme.org
-
-[[file+emacs:c:/Users/dh/AppData/Roaming/hl-line-fringe/README.org]]
-
-** TODO Add screenshots
-
-** TODO Verify default values of variables
-
------
-
-* Archive                                                           :ARCHIVE:
-
-** DONE Window-buffer and current-buffer
-CLOSED: [2018-11-06 Di 16:31]
+** DONE Change overlay at fill column
+CLOSED: [2018-11-09 Fre 02:02]
 :PROPERTIES:
-:ARCHIVE_TIME: 2018-11-06 Di 16:31
+:ARCHIVE_TIME: 2018-11-09 Fre 02:03
 :ARCHIVE_FILE: ~/hl-line-fringe/TODOs.org
 :ARCHIVE_CATEGORY: TODOs
 :ARCHIVE_TODO: DONE
 :END:
 
-Use window-buffer For normal use window-buffer 
+This is not possible
 
