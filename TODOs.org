@@ -1,17 +1,42 @@
+#+STARTUP: indent
 #+ARCHIVE: ::* Archive
 
-* TODO Clean & Optimize
+Working on hl-line-fringe-2 to overcome a lot of stuff not working in first file.
 
-Rewrite critical defuns (update).
-Implement first and then rewrite stuff that can be optimized.
+* hl-line-fringe2.el
+
+** TODO Optimize
+
+*** TODO Maybe avoid win parameter
+
+By using with [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Selecting-Windows.html][with-selected-window]].
+
+*** TODO Window-config-change-hook
+
+Make a check at start to avoid it being called too often.
+
+- [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Finding-All-Frames.html][visible-frame-list]]
+- [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Windows-and-Frames.html#Windows-and-Frames][window-list]]
+- [[https://emacs.stackexchange.com/a/3495/19819]]
+
+** TODO Features fill-column
+
+Try to make whitespace mode for lines too long be visible.
+Hopefully this can be done with priority.
+
+** TODO Docstrings
+
+** TODO Write as hl-line-fringe.el
 
 * TODO Test
 
 ** TODO Rewrite test after implementing new stuff
- 
+
 * TODO Readme.org
 
 [[file+emacs:c:/Users/dh/AppData/Roaming/hl-line-fringe/README.org]]
+
+** TODO Update readme.org
 
 ** TODO Add screenshots
 
