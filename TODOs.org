@@ -7,6 +7,10 @@ Working on hl-line-fringe-2 to overcome a lot of stuff not working in first file
 
 ** TODO Optimize
 
+*** TODO Maybe use use buffer-local-value than with-current-buffer
+
+https://www.reddit.com/r/emacs/comments/a77e6r/elisp_tip_its_much_faster_to_use_bufferlocalvalue/
+
 *** TODO Maybe avoid win parameter
 
 By using with [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Selecting-Windows.html][with-selected-window]].
